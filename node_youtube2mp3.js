@@ -8,7 +8,7 @@ var sanitize = require("sanitize-filename");
 var ffmpeg = require('fluent-ffmpeg')
 var ffmpegParams = {
     format: 'mp3',
-    bitrate: 128,
+    bitrate: 320,
     seek: 0,
     duration: null
 }
@@ -17,94 +17,135 @@ var _jobs = {}
 var _file_to_task = {}
 var FILES_LOCATION = './temp-downloads'
 
-function saveBufferAsFile(res, ffMpegWriter, filename, task) {
+function saveBufferAsFile(res, writer, filename, task) {
     var filepath = FILES_LOCATION+'/'+filename;
     if (!fs.existsSync(FILES_LOCATION)) fs.mkdirSync(FILES_LOCATION);
-    ffMpegWriter.on('progress', function(progress) {
-        task.status = 'ongoing'
-        if (progress) task.progress = progress.targetSize
-    });
-    ffMpegWriter.pipe(fs.createWriteStream(filepath)).on('finish', function () {
-        console.log('Task complete! Will delete file in 10min')
+    writer.pipe(fs.createWriteStream(filepath)).on('finish', function () {
+        console.log('Task complete! Will delete file in 5min')
         task.status = 'completed'
         task.progress = 1
-        task.downloadUrl = '/download/'+task.id
         task.endProgress = 1
         setTimeout(function() {
             task.status = 'deleted'
-            fs.unlink(filepath, function() {
-                console.log(filepath + ' deleted')
-            });
-        }, 10*60*1000)
+            try {
+                delete _file_to_task[filename]
+                fs.unlink(filepath, function() {
+                    console.log(filepath + ' deleted')
+                });
+            } catch (e) {
+                console.log(e)
+            }
+        }, 5*60*1000)
     });
 }
 
-function getExistingTask(filename) {
+function checkExistingTask(filename, curTask) {
     if (_file_to_task[filename] && _jobs[_file_to_task[filename]] &&_jobs[_file_to_task[filename]].status !== 'deleted') {
-        return _jobs[_file_to_task[filename]]
+        // Link task id to same task data
+        console.log('Found existing task, linking to it')
+        _jobs[curTask.id] = _jobs[_file_to_task[filename]]
+        return true
     }
-    return null
+
+    // If nothing exists we continue with this task and process it
+    curTask.filename = filename
+    _file_to_task[filename] = curTask.id // Register this task
+    return false
 }
 
-function createNewFileTask(filename) {
+function createNewFileTask(type) {
     var id = randomstring.generate();
-    _file_to_task[filename] = id
     _jobs[id] = {
         id:id,
-        filename: filename,
-        status: 'created',
-        progress: 0,
+        type: type,
+        status: 'starting',
+        progress: -1,
         endProgress: -1
     }
     return _jobs[id];
 }
 
+
+function downloadYoutube(task, url, filter) {
+    return ytdl(url, filter).on('progress', function(chunkLength, downloaded, totalDownload) {
+        if (!task) return;
+        task.status = 'downloading'
+        task.progress = downloaded
+        task.endProgress = totalDownload
+    });
+}
+
+app.use('/static', express.static('public'));
 app.set('json spaces', 4);
 app.get('/status/:taskId', function (req, res) {
-    var task = _jobs[req.params.taskId]
+    var task = JSON.parse(JSON.stringify(_jobs[req.params.taskId]));
     if (!task) {
-        res.end({status:'ko', message:'Task not found for id '+req.params.taskId});
+        res.json({status:'ko', message:'Task not found for id '+req.params.taskId});
         return
     }
-    res.end(task);
+    task.originalId = task.id
+    task.id = req.params.taskId // Update id as it could not match original one
+    res.json(task);
 })
 
 app.get('/download/:taskId', function (req, res) {
     var task = _jobs[req.params.taskId]
     if (!task) {
-        res.end({status:'ko', message:'Task not found for id '+req.params.taskId});
+        res.json({status:'ko', message:'Task not found for id '+req.params.taskId});
         return
     }
     if (task.status !== 'completed') {
-        res.end({status:'ko', message:'Task is not yet completed'});
+        res.json({status:'ko', message:'Task is not yet completed'});
         return
     }
     var file = FILES_LOCATION+'/'+task.filename;
     if (!fs.existsSync(file)) {
-        res.end({status:'ko', message:'File not found'});
+        res.json({status:'ko', message:'File not found'});
         return
     }
     res.download(file)
 })
 
-app.get('/getmp3/:videoId', function (req, res) {
+app.get('/convertToMp3/:videoId', function (req, res) {
     var requestUrl = 'https://www.youtube.com/watch?v=' + req.params.videoId;
     console.log('Getting info of '+ requestUrl + ' ...')
     try {
+        var task = createNewFileTask('audio');
+        res.json(task);
         ytdl.getInfo(requestUrl, {}, function(err, videosInfos) {
             var filename = sanitize(videosInfos.title) + '.mp3';
-            var existingTask = getExistingTask(filename);
-            if (existingTask !== null) {
-                res.json(existingTask);
-                return;
-            }
+            if (checkExistingTask(filename, task)) return
 
-            var task = createNewFileTask(filename);
-            res.json(task)
             console.log('Creating ' + filename + ' ...')
-            var reader = ytdl(requestUrl, {filter: 'audioonly'});
-            var ffMpegWriter = ffmpeg(reader).format(ffmpegParams.format).audioBitrate(ffmpegParams.bitrate);
+            var reader = downloadYoutube(task, requestUrl, {filter: 'audioonly'})
+            // FF mpeg is way faster than download so no need to get progress actually (plus it's done in parallel)
+            var ffMpegWriter = ffmpeg(reader).format(ffmpegParams.format).audioBitrate(ffmpegParams.bitrate)/*.on('progress', function(progress) {
+                console.log('convertion !!!')
+                task.status = 'converting'
+                if (progress) task.progress = progress.targetSize
+                task.endProgress = -1
+            })*/;
             saveBufferAsFile(res, ffMpegWriter, filename, task);
+        });
+    } catch (e) {
+        console.error(e)
+        res.status(500).send(e)
+    }
+});
+
+app.get('/downloadMp4/:videoId', function (req, res) {
+    var requestUrl = 'https://www.youtube.com/watch?v=' + req.params.videoId;
+    console.log('Getting info of '+ requestUrl + ' ...')
+    try {
+        var task = createNewFileTask('video');
+        res.json(task);
+        ytdl.getInfo(requestUrl, {}, function(err, videosInfos) {
+            var filename = sanitize(videosInfos.title) + '.mp4';
+            if (checkExistingTask(filename, task)) return
+
+            console.log('Creating ' + filename + ' ...')
+            var reader = downloadYoutube(task, requestUrl, { filter: (format) => format.container === 'mp4' });
+            saveBufferAsFile(res, reader, filename, task);
         });
     } catch (e) {
         console.error(e)
