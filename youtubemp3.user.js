@@ -15,7 +15,7 @@ var youtube2mp3Server = 'http://localhost:7788';
 var downloadWidth = 400;
 
 var setDownloadDiv = setInterval(function() {
-    var container = document.getElementById('container');
+    var container = document.querySelector("#meta-contents").querySelector("#container");
     var downloadCorner = document.getElementById('downloadCorner');
     if (container && !downloadCorner) {
         var div = document.createElement('div');
@@ -143,6 +143,7 @@ function registerNewOngoingTask(task) {
 function downloadNewVideo(id, format) {
     console.log('Requesting download of video '+id);
     var service = format == 'MP3' ? 'convertToMp3' : 'downloadMp4'
+    console.log("format", format);
     GM_xmlhttpRequest({
         method: 'GET',
         url: youtube2mp3Server+'/'+service+'/'+id,
@@ -167,16 +168,18 @@ function addDownloadButton(subButton, type) {
         var buttonName = type == "MP3" ? "MP3" : "Clip"
         var div = document.createElement('div');
         div.id = 'download-button';
-        div.className = 'style-scope ytd-video-secondary-info-renderer';
-        div.innerHTML = subButton.outerHTML.replace('aria-disabled="false"', 'aria-disabled="true" style="color: var(--yt-subscribe-button-text-color);background-color: var(--yt-brand-paper-button-color);"');
+        div.className = 'style-scope ytd-video-secondary-info-renderer style-destructive';
+        div.innerHTML = subButton.outerHTML.replace('aria-disabled="false"', 'aria-disabled="true" style="color: var(--yt-subscribe-button-text-color);background-color: var(--yt-brand-paper-button-color); padding:12px; padding-right:25px; margin-left:10px; border-radius:1px;"');
         div.title = 'Télécharger cette video youtube au format '+type
         div.getElementsByTagName('yt-formatted-string')[0].innerHTML = '<div style="height:0px;"><img src="'+youtube2mp3Server+'/static/ic_file_download_white_24dp.png" style="position:relative;left:-12px;top:-3px;height:25px;width:auto"></div> <span style="position:relative;left:17px;">'+buttonName+'</span>';
         div.style.position = 'relative';
         div.style.top = '7px';
+
         div.addEventListener('click', function () {
             var videoID = location.search.split('v=')[1].split('&')[0];
             downloadNewVideo(videoID, type);
         }, false);
+        console.log("buttons", div);
         document.getElementById('top-row').appendChild(div);
         return true
     }
@@ -190,7 +193,7 @@ if (document.URL.indexOf(".youtube.") !== -1) {
             var paperButtons = document.getElementsByTagName('paper-button');
             var subButton = null;
             for (var i=0 ; i<paperButtons.length ; ++i) {
-                if (paperButtons[i].className.indexOf('ytd-subscribe-button-renderer') !== -1) {
+                if (paperButtons[i].className.indexOf('ytd-button-renderer') !== -1) {
                     subButton = paperButtons[i];
                     break
                 }

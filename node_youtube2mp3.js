@@ -78,11 +78,12 @@ function downloadYoutube(task, url, filter) {
 app.use('/static', express.static('public'));
 app.set('json spaces', 4);
 app.get('/status/:taskId', function (req, res) {
-    var task = JSON.parse(JSON.stringify(_jobs[req.params.taskId]));
-    if (!task) {
+    var server_task = _jobs[req.params.taskId];
+    if (!server_task) {
         res.json({status:'ko', message:'Task not found for id '+req.params.taskId});
         return
     }
+    var task = JSON.parse(JSON.stringify(server_task)); // clone object
     task.originalId = task.id
     task.id = req.params.taskId // Update id as it could not match original one
     res.json(task);
@@ -113,6 +114,10 @@ app.get('/convertToMp3/:videoId', function (req, res) {
         var task = createNewFileTask('audio');
         res.json(task);
         ytdl.getInfo(requestUrl, {}, function(err, videosInfos) {
+            if(err){
+                console.log("convertToMp3 err: ", err)
+                return res.json({status:'ko', message:'Unable to get videos infos'});
+            }
             var filename = sanitize(videosInfos.title) + '.mp3';
             if (checkExistingTask(filename, task)) return
 
