@@ -13,8 +13,8 @@
 // ==/UserScript==
 
 var downloads = [];
-//var youtube2mp3Server = 'http://localhost:7788';
-var youtube2mp3Server = 'http://192.168.1.10:7788';
+var youtube2mp3Server = 'http://localhost:7788';
+//var youtube2mp3Server = 'http://192.168.1.10:7788';
 var downloadWidth = 400;
 
 var setDownloadDiv = setInterval(function() {
@@ -74,11 +74,11 @@ function updateProgress(task) {
             if (downloadCorner) {
                 var icon = youtube2mp3Server+'/static/ic_music_note_black_24dp.png';
                 if (task.type == 'video') icon = youtube2mp3Server+'/static/ic_ondemand_video_black_24dp.png';
-                downloadCorner.innerHTML +=   '<div class="iv-card-content" id="downloadTask-'+task.id+'" style="width:'+(downloadWidth-56-10)+'px;height:30px;margin-bottom:10px;background:white;padding-left:56px;padding-right:10px;box-shadow:1px 1px 5px 1px rgba(0, 0, 0, 0.4);padding-top: 15px;padding-bottom: 15px;">'
+                downloadCorner.innerHTML +=   '<div class="iv-card-content" id="downloadTask-'+task.id+'" style="width:'+(downloadWidth-56-10)+'px;height:30px;margin-bottom:10px;background:white;padding-left:56px;padding-right:10px;box-shadow:1px 1px 5px 1px rgba(0, 0, 0, 0.4);padding-top: 10px;padding-bottom: 15px;">'
                                             + '    <div style="height:0px;"><div id="downloadTask-progressbar-'+task.id+'" style="width:50px;height:5px;background:lightgreen;position:relative;top:40px;left:-56px"></div></div>'
                                             + '    <div style="height:0px;"><img id="downloadTask-icon-'+task.id+'" src="'+icon+'" style="position:relative;left:-45px;top:-3px;height:35px;width:auto"></div>'
                                             + '    <h2 class="iv-card-primary-link" dir="ltr" style="margin:0;text-overflow: ellipsis;white-space: nowrap;overflow: hidden;" id="downloadTask-filename-'+task.id+'">'+task.filename+'</h2>'
-                                            + '    <ul class="iv-card-meta-info" style="margin: 5px;"><li dir="ltr">'
+                                            + '    <ul class="iv-card-meta-info" style="margin: 2px;"><li dir="ltr">'
                                             + '        <b id="downloadTask-status-'+task.id+'">'+task.status+'</b> '
                                             + '        <i id="downloadTask-progress-'+task.id+'">'+task.progressText+'</i>'
                                             + '    </li></ul>'
@@ -166,31 +166,29 @@ function downloadNewVideo(id, format) {
     });
 }
 
-function addDownloadButton(subButton, type) {
-    if(subButton && subButton.innerHTML.indexOf(type) == -1) {
-        try {
-            var buttonName = type == "MP3" ? "MP3" : "MP4"
-            var div = document.createElement('div');
-            div.id = 'download-button';
-            div.className = 'style-scope ytd-video-secondary-info-renderer';
-            div.innerHTML = '<div style="cursor:pointer;border:1psx solid white;margin-left:5px;padding:20px;position:relative;left:10px;top:-8px;color:#F0F0F0">'
-                                + '<div style="height:0px;"><img src="'+youtube2mp3Server+'/static/ic_file_download_white_24dp.png" style="position:relative;left:-12px;top:-3px;height:25px;width:auto"></div>'
-                                + ' <span style="position:relative;left:17px;font-size:14px">'+buttonName+'</span>'
-                            +'</div>';
-            div.title = 'Télécharger cette video youtube au format '+type
-            div.style.position = 'relative';
-            div.style.top = '7px';
-            div.addEventListener('click', function () {
-                var videoID = location.search.split('v=')[1].split('&')[0];
-                downloadNewVideo(videoID, type);
-                return false;
-            }, false);
-            document.getElementById('logo-icon-container').parentNode.parentNode.appendChild(div);
-            document.getElementById('country-code').style.display = 'none';
-            return true
-        } catch (e) {
-            console.error(e)
-        }
+function addDownloadButton(type) {
+    try {
+        var buttonName = type == "MP3" ? "MP3" : "MP4"
+        var div = document.createElement('div');
+        div.id = 'download-button';
+        div.className = 'style-scope ytd-video-secondary-info-renderer';
+        div.innerHTML = '<div style="cursor:pointer;border:1psx solid white;margin-left:5px;padding:20px;position:relative;left:10px;top:-8px;color:#F0F0F0">'
+                            + '<div style="height:0px;"><img src="'+youtube2mp3Server+'/static/ic_file_download_white_24dp.png" style="position:relative;left:-12px;top:-3px;height:25px;width:auto"></div>'
+                            + ' <span style="position:relative;left:17px;font-size:14px">'+buttonName+'</span>'
+                        +'</div>';
+        div.title = 'Télécharger cette video youtube au format '+type
+        div.style.position = 'relative';
+        div.style.top = '7px';
+        div.addEventListener('click', function () {
+            var videoID = location.search.split('v=')[1].split('&')[0];
+            downloadNewVideo(videoID, type);
+            return false;
+        }, false);
+        document.getElementById('logo-icon-container').parentNode.parentNode.appendChild(div);
+        document.getElementById('country-code').style.display = 'none';
+        return true
+    } catch (e) {
+        console.error(e)
     }
     return false
 }
@@ -198,20 +196,10 @@ function addDownloadButton(subButton, type) {
 // Add button to UI
 if (document.URL.indexOf(".youtube.") !== -1) {
     var addButtonsInterval = setInterval(function() {
-        if (!document.getElementById('download-button')) {
-            var paperButtons = document.getElementsByTagName('paper-button');
-            var subButton = null;
-            for (var i=0 ; i<paperButtons.length ; ++i) {
-                if (paperButtons[i].className.indexOf('ytd-subscribe-button-renderer') !== -1) {
-                    subButton = paperButtons[i];
-                    console.log(subButton)
-                    //break
-                }
-            }
-            console.log(subButton)
-            if (addDownloadButton(subButton, 'MP3') && addDownloadButton(subButton, 'MP4')) {
-                clearInterval(addButtonsInterval);
-            }
+        if (!document.getElementById('download-button') && document.getElementById('logo-icon-container')) {
+            addDownloadButton('MP3');
+            addDownloadButton('MP4');
+            clearInterval(addButtonsInterval);
         }
     }, 100);
 }
