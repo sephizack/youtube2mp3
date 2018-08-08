@@ -81,9 +81,13 @@ app.get('/status/:taskId', function (req, res) {
     var server_task = _jobs[req.params.taskId];
     if (!server_task) {
         res.json({status:'ko', message:'Task not found for id '+req.params.taskId});
+        return;
+    }
+    var task = JSON.parse(JSON.stringify(_jobs[req.params.taskId]));
+    if (!task) {
+        res.json({status:'ko', message:'Task not found for id '+req.params.taskId});
         return
     }
-    var task = JSON.parse(JSON.stringify(server_task)); // clone object
     task.originalId = task.id
     task.id = req.params.taskId // Update id as it could not match original one
     res.json(task);
@@ -114,27 +118,35 @@ app.get('/convertToMp3/:videoId', function (req, res) {
         var task = createNewFileTask('audio');
         res.json(task);
         ytdl.getInfo(requestUrl, {}, function(err, videosInfos) {
-            if(err){
-                console.log("convertToMp3 err: ", err)
-                return res.json({status:'ko', message:'Unable to get videos infos'});
+            if (err) {
+                console.error("Unable to get video infos:", err);
+                task.status = "error";
+                return;
             }
             var filename = sanitize(videosInfos.title) + '.mp3';
-            if (checkExistingTask(filename, task)) return
+            if (checkExistingTask(filename, task)) {
+                console.log("Task already existst.");
+                return
+            }
 
             console.log('Creating ' + filename + ' ...')
             var reader = downloadYoutube(task, requestUrl, {filter: 'audioonly'})
-            // FF mpeg is way faster than download so no need to get progress actually (plus it's done in parallel)
-            var ffMpegWriter = ffmpeg(reader).format(ffmpegParams.format).audioBitrate(ffmpegParams.bitrate)/*.on('progress', function(progress) {
-                console.log('convertion !!!')
-                task.status = 'converting'
-                if (progress) task.progress = progress.targetSize
-                task.endProgress = -1
-            })*/;
-            saveBufferAsFile(res, ffMpegWriter, filename, task);
+            try {
+                // FF mpeg is way faster than the download of the mp4, so no need to display progress actually (it's done in parallel)
+                var ffMpegWriter = ffmpeg(reader).format(ffmpegParams.format).audioBitrate(ffmpegParams.bitrate)/*.on('progress', function(progress) {
+                    console.log('convertion !!!')
+                    task.status = 'converting'
+                    if (progress) task.progress = progress.targetSize
+                    task.endProgress = -1
+                })*/;
+                saveBufferAsFile(res, ffMpegWriter, filename, task);
+            } catch (e) {
+                console.error("Error while caling ffmpeg. Make sure it is installed on your server. (accessible via PATH or local dir)")
+                console.log(e);
+            }
         });
     } catch (e) {
-        console.error(e)
-        res.status(500).send(e)
+        console.error('convertToMp3 exception: ', e)
     }
 });
 

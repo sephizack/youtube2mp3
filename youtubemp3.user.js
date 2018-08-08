@@ -7,15 +7,18 @@
 // @exclude        https://www.youtube.com/subscribe_embed*
 // @grant          GM_xmlhttpRequest
 // @connect        localhost
+// @connect        192.168.*.*
 //// @require      file:///C:/Users/biseg/git/youtube2mp3/youtubemp3.user.js
+//// @require      file:///D:/homeRaspberry/git/youtube2mp3/youtubemp3.user.js
 // ==/UserScript==
 
 var downloads = [];
-var youtube2mp3Server = 'http://localhost:7788';
+//var youtube2mp3Server = 'http://localhost:7788';
+var youtube2mp3Server = 'http://192.168.1.10:7788';
 var downloadWidth = 400;
 
 var setDownloadDiv = setInterval(function() {
-    var container = document.querySelector("#meta-contents").querySelector("#container");
+    var container = document.getElementById('container');
     var downloadCorner = document.getElementById('downloadCorner');
     if (container && !downloadCorner) {
         var div = document.createElement('div');
@@ -62,6 +65,7 @@ function updateProgress(task) {
             if (task.status == 'downloading') task.status = 'Téléchargement ...' 
             if (task.status == 'converting') task.status = 'Conversion ...'
             if (task.status == 'starting') task.status = 'Démarrage ...'
+            if (task.status == 'error') task.status = 'Une erreur est survenue.'
             if (!task.filename) task.filename = 'Recupération des infos Youtube ...'
             console.log('Progress for task '+ task.id + ' : '+task.status+'... '+task.progressText)
         }
@@ -73,8 +77,8 @@ function updateProgress(task) {
                 downloadCorner.innerHTML +=   '<div class="iv-card-content" id="downloadTask-'+task.id+'" style="width:'+(downloadWidth-56-10)+'px;height:30px;margin-bottom:10px;background:white;padding-left:56px;padding-right:10px;box-shadow:1px 1px 5px 1px rgba(0, 0, 0, 0.4);padding-top: 15px;padding-bottom: 15px;">'
                                             + '    <div style="height:0px;"><div id="downloadTask-progressbar-'+task.id+'" style="width:50px;height:5px;background:lightgreen;position:relative;top:40px;left:-56px"></div></div>'
                                             + '    <div style="height:0px;"><img id="downloadTask-icon-'+task.id+'" src="'+icon+'" style="position:relative;left:-45px;top:-3px;height:35px;width:auto"></div>'
-                                            + '    <h2 class="iv-card-primary-link" dir="ltr" style="text-overflow: ellipsis;white-space: nowrap;overflow: hidden;" id="downloadTask-filename-'+task.id+'">'+task.filename+'</h2>'
-                                            + '    <ul class="iv-card-meta-info"><li dir="ltr">'
+                                            + '    <h2 class="iv-card-primary-link" dir="ltr" style="margin:0;text-overflow: ellipsis;white-space: nowrap;overflow: hidden;" id="downloadTask-filename-'+task.id+'">'+task.filename+'</h2>'
+                                            + '    <ul class="iv-card-meta-info" style="margin: 5px;"><li dir="ltr">'
                                             + '        <b id="downloadTask-status-'+task.id+'">'+task.status+'</b> '
                                             + '        <i id="downloadTask-progress-'+task.id+'">'+task.progressText+'</i>'
                                             + '    </li></ul>'
@@ -143,7 +147,6 @@ function registerNewOngoingTask(task) {
 function downloadNewVideo(id, format) {
     console.log('Requesting download of video '+id);
     var service = format == 'MP3' ? 'convertToMp3' : 'downloadMp4'
-    console.log("format", format);
     GM_xmlhttpRequest({
         method: 'GET',
         url: youtube2mp3Server+'/'+service+'/'+id,
@@ -165,23 +168,29 @@ function downloadNewVideo(id, format) {
 
 function addDownloadButton(subButton, type) {
     if(subButton && subButton.innerHTML.indexOf(type) == -1) {
-        var buttonName = type == "MP3" ? "MP3" : "Clip"
-        var div = document.createElement('div');
-        div.id = 'download-button';
-        div.className = 'style-scope ytd-video-secondary-info-renderer style-destructive';
-        div.innerHTML = subButton.outerHTML.replace('aria-disabled="false"', 'aria-disabled="true" style="color: var(--yt-subscribe-button-text-color);background-color: var(--yt-brand-paper-button-color); padding:12px; padding-right:25px; margin-left:10px; border-radius:1px;"');
-        div.title = 'Télécharger cette video youtube au format '+type
-        div.getElementsByTagName('yt-formatted-string')[0].innerHTML = '<div style="height:0px;"><img src="'+youtube2mp3Server+'/static/ic_file_download_white_24dp.png" style="position:relative;left:-12px;top:-3px;height:25px;width:auto"></div> <span style="position:relative;left:17px;">'+buttonName+'</span>';
-        div.style.position = 'relative';
-        div.style.top = '7px';
-
-        div.addEventListener('click', function () {
-            var videoID = location.search.split('v=')[1].split('&')[0];
-            downloadNewVideo(videoID, type);
-        }, false);
-        console.log("buttons", div);
-        document.getElementById('top-row').appendChild(div);
-        return true
+        try {
+            var buttonName = type == "MP3" ? "MP3" : "MP4"
+            var div = document.createElement('div');
+            div.id = 'download-button';
+            div.className = 'style-scope ytd-video-secondary-info-renderer';
+            div.innerHTML = '<div style="cursor:pointer;border:1psx solid white;margin-left:5px;padding:20px;position:relative;left:10px;top:-8px;color:#F0F0F0">'
+                                + '<div style="height:0px;"><img src="'+youtube2mp3Server+'/static/ic_file_download_white_24dp.png" style="position:relative;left:-12px;top:-3px;height:25px;width:auto"></div>'
+                                + ' <span style="position:relative;left:17px;font-size:14px">'+buttonName+'</span>'
+                            +'</div>';
+            div.title = 'Télécharger cette video youtube au format '+type
+            div.style.position = 'relative';
+            div.style.top = '7px';
+            div.addEventListener('click', function () {
+                var videoID = location.search.split('v=')[1].split('&')[0];
+                downloadNewVideo(videoID, type);
+                return false;
+            }, false);
+            document.getElementById('logo-icon-container').parentNode.parentNode.appendChild(div);
+            document.getElementById('country-code').style.display = 'none';
+            return true
+        } catch (e) {
+            console.error(e)
+        }
     }
     return false
 }
@@ -193,11 +202,13 @@ if (document.URL.indexOf(".youtube.") !== -1) {
             var paperButtons = document.getElementsByTagName('paper-button');
             var subButton = null;
             for (var i=0 ; i<paperButtons.length ; ++i) {
-                if (paperButtons[i].className.indexOf('ytd-button-renderer') !== -1) {
+                if (paperButtons[i].className.indexOf('ytd-subscribe-button-renderer') !== -1) {
                     subButton = paperButtons[i];
-                    break
+                    console.log(subButton)
+                    //break
                 }
             }
+            console.log(subButton)
             if (addDownloadButton(subButton, 'MP3') && addDownloadButton(subButton, 'MP4')) {
                 clearInterval(addButtonsInterval);
             }
