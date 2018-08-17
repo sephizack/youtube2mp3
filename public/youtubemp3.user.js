@@ -8,9 +8,34 @@
 // @grant          GM_xmlhttpRequest
 // @connect        localhost
 // @connect        192.168.*.*
-//// @require      file:///C:/Users/biseg/git/youtube2mp3/youtubemp3.user.js
-//// @require      file:///D:/homeRaspberry/git/youtube2mp3/youtubemp3.user.js
+//// @require      file:///C:/Users/biseg/git/youtube2mp3/public/youtubemp3.user.js
+//// @require      file:///D:/homeRaspberry/git/youtube2mp3/public/youtubemp3.user.js
 // ==/UserScript==
+
+function HttpCallFunctionJSON(url, callback) {
+    try {
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: url,
+            onload: function (responseDetails) {
+                if (responseDetails.status == 200) {
+                    var result = JSON.parse(responseDetails.responseText);
+                    callback(result);
+                } else {
+                    console.error(responseDetails)
+                }
+            },
+            onerror:function (error) {
+                console.error(error)
+            }
+        });
+    } catch(e) {
+        $.getJSON(url, function(data) {
+            callback(data)
+        });
+    }
+};
+
 
 var downloads = [];
 var youtube2mp3Server = 'http://localhost:7788';
@@ -62,7 +87,7 @@ function updateProgress(task) {
                 }
             }
             // Fancy status
-            if (task.status == 'downloading') task.status = 'Téléchargement ...' 
+            if (task.status == 'downloading') task.status = 'Téléchargement et conversion ...' 
             if (task.status == 'converting') task.status = 'Conversion ...'
             if (task.status == 'starting') task.status = 'Démarrage ...'
             if (task.status == 'error') task.status = 'Une erreur est survenue.'
@@ -114,56 +139,36 @@ function registerNewOngoingTask(task) {
     updateProgress(task);
     downloads.push(taskid)
     var monitorTask = setInterval(function() {
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: youtube2mp3Server+'/status/'+taskid,
-            onload: function (responseDetails) {
-                if (responseDetails.status == 200) {
-                    var result = JSON.parse(responseDetails.responseText);
-                    if (result.id) {
-                        if (result.status == 'completed') {
-                            console.log('Task '+taskid+' complete, downloading '+result.filename);
-                            clearInterval(monitorTask);
-                            location.href = youtube2mp3Server+'/download/'+taskid // Download
-                        }
-                        if (result.id !== result.originalId && downloads.indexOf(result.originalId) !== -1) {
-                            console.log('Same task is already ongoing ('+result.originalId+'), cancelling '+result.id);
-                            document.getElementById('downloadTask-'+task.id).style.display = 'none'
-                            clearInterval(monitorTask);
-                        }
-                        updateProgress(result);
+        HttpCallFunctionJSON(youtube2mp3Server+'/status/'+taskid,
+            function (result) {
+                if (result.id) {
+                    if (result.status == 'completed') {
+                        console.log('Task '+taskid+' complete, downloading '+result.filename);
+                        clearInterval(monitorTask);
+                        location.href = youtube2mp3Server+'/download/'+taskid // Download
                     }
-                } else {
-                    console.error(responseDetails)
+                    if (result.id !== result.originalId && downloads.indexOf(result.originalId) !== -1) {
+                        console.log('Same task is already ongoing ('+result.originalId+'), cancelling '+result.id);
+                        document.getElementById('downloadTask-'+task.id).style.display = 'none'
+                        clearInterval(monitorTask);
+                    }
+                    updateProgress(result);
                 }
-            },
-            onerror:function (error) {
-                console.error(error)
             }
-        });
+        );
     },1000);
 }
 
-function downloadNewVideo(id, format) {
-    console.log('Requesting download of video '+id);
+function downloadNewVideo(videoID, format) {
+    console.log('Requesting download of video '+videoID);
     var service = format == 'MP3' ? 'convertToMp3' : 'downloadMp4'
-    GM_xmlhttpRequest({
-        method: 'GET',
-        url: youtube2mp3Server+'/'+service+'/'+id,
-        onload: function (responseDetails) {
-            if (responseDetails.status == 200) {
-                var result = JSON.parse(responseDetails.responseText);
-                if (result.id) {
-                    registerNewOngoingTask(result)
-                }
-            } else {
-                console.error(responseDetails)
+    HttpCallFunctionJSON(youtube2mp3Server+'/'+service+'/'+videoID,
+        function (result) {
+            if (result.id) {
+                registerNewOngoingTask(result)
             }
-        },
-        onerror:function (error) {
-            console.error(error)
         }
-    });
+    );
 }
 
 function addDownloadButton(type) {

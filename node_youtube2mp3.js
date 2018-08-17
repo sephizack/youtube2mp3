@@ -130,7 +130,7 @@ app.get('/convertToMp3/:videoId', function (req, res) {
             }
 
             console.log('Creating ' + filename + ' ...')
-            var reader = downloadYoutube(task, requestUrl, {filter: 'audioonly'})
+            var reader = downloadYoutube(task, requestUrl, {quality: 'highestaudio', filter: 'audioonly'})
             try {
                 // FF mpeg is way faster than the download of the mp4, so no need to display progress actually (it's done in parallel)
                 var ffMpegWriter = ffmpeg(reader).format(ffmpegParams.format).audioBitrate(ffmpegParams.bitrate)/*.on('progress', function(progress) {
@@ -168,6 +168,17 @@ app.get('/downloadMp4/:videoId', function (req, res) {
         console.error(e)
         res.status(500).send(e)
     }
+})
+
+app.get('/', function (req, res) {
+    res.sendFile('index.html', {
+        root: __dirname + '/',
+        dotfiles: 'deny',
+        headers: {
+            'x-timestamp': Date.now(),
+            'x-sent': true
+        }
+    });
 })
 
 app.listen(7788, () => console.log('Listening on port 7788!'))
