@@ -21,7 +21,7 @@ function saveBufferAsFile(res, writer, filename, task) {
     var filepath = FILES_LOCATION+'/'+filename;
     if (!fs.existsSync(FILES_LOCATION)) fs.mkdirSync(FILES_LOCATION);
     writer.pipe(fs.createWriteStream(filepath)).on('finish', function () {
-        console.log('Task complete! Will delete file in 5min')
+        console.log('Task complete! Will delete file in 20min')
         task.status = 'completed'
         task.progress = 1
         task.endProgress = 1
@@ -35,7 +35,7 @@ function saveBufferAsFile(res, writer, filename, task) {
             } catch (e) {
                 console.log(e)
             }
-        }, 5*60*1000)
+        }, 20*60*1000)
     });
 }
 
@@ -80,12 +80,12 @@ app.set('json spaces', 4);
 app.get('/status/:taskId', function (req, res) {
     var server_task = _jobs[req.params.taskId];
     if (!server_task) {
-        res.json({status:'ko', message:'Task not found for id '+req.params.taskId});
+        res.json({id: req.params.taskId, status:'ko', message:'Task not found for id '+req.params.taskId});
         return;
     }
     var task = JSON.parse(JSON.stringify(_jobs[req.params.taskId]));
     if (!task) {
-        res.json({status:'ko', message:'Task not found for id '+req.params.taskId});
+        res.json({id: req.params.taskId, status:'ko', message:'Task not found for id '+req.params.taskId});
         return
     }
     task.originalId = task.id
@@ -96,16 +96,16 @@ app.get('/status/:taskId', function (req, res) {
 app.get('/download/:taskId', function (req, res) {
     var task = _jobs[req.params.taskId]
     if (!task) {
-        res.json({status:'ko', message:'Task not found for id '+req.params.taskId});
+        res.json({id: req.params.taskId, status:'ko', message:'Task not found for id '+req.params.taskId});
         return
     }
     if (task.status !== 'completed') {
-        res.json({status:'ko', message:'Task is not yet completed'});
+        res.json({id: req.params.taskId, status:'ko', message:'Task is not yet completed'});
         return
     }
     var file = FILES_LOCATION+'/'+task.filename;
     if (!fs.existsSync(file)) {
-        res.json({status:'ko', message:'File not found'});
+        res.json({id: req.params.taskId, status:'ko', message:'File not found'});
         return
     }
     res.download(file)

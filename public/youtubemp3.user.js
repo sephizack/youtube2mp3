@@ -36,6 +36,16 @@ function HttpCallFunctionJSON(url, callback) {
     }
 };
 
+function storePendingTasks() {
+    var allTasks = []
+    for (var id in downloads) {
+        if (downloads.hasOwnProperty(id)) {
+            allTasks.push(downloads[id])
+        }
+    }
+
+    localStorage.setItem('pendingTasks', JSON.stringify(allTasks));
+}
 
 var downloads = [];
 var youtube2mp3Server = 'http://localhost:7788';
@@ -60,6 +70,9 @@ var setDownloadDiv = setInterval(function() {
 
 function updateProgress(task) {
     try {
+        downloads[task.id] = task;
+        storePendingTasks();
+
         var downloadCorner = document.getElementById('downloadCorner');
         if (!downloadCorner) {
             console.error('downloadCorner not set!')
@@ -67,6 +80,7 @@ function updateProgress(task) {
         }
 
         var isDone = false;
+        var isKO = false;
         if (task.status == 'completed') {
             task.status = 'Terminé'
             task.progressText = ''
@@ -90,7 +104,11 @@ function updateProgress(task) {
             if (task.status == 'downloading') task.status = 'Téléchargement et conversion ...' 
             if (task.status == 'converting') task.status = 'Conversion ...'
             if (task.status == 'starting') task.status = 'Démarrage ...'
-            if (task.status == 'error') task.status = 'Une erreur est survenue.'
+            if (task.status == 'deleted') task.status = 'Fichier supprimé, veuillez demander à nouveau la conversion.'
+            if (task.status == 'error' || task.status == 'ko') {
+                isKO = true;
+                task.status = 'Une erreur est survenue. <span title="'+task.message.replace(/"/g, '\'')+'">(?)</span>'
+            }
             if (!task.filename) task.filename = 'Recupération des infos Youtube ...'
             console.log('Progress for task '+ task.id + ' : '+task.status+'... '+task.progressText)
         }
@@ -118,11 +136,17 @@ function updateProgress(task) {
         document.getElementById('downloadTask-progressbar-'+task.id).style.width = Math.floor(task.progressPercent*downloadWidth) + 'px';
         if (isDone) {
             document.getElementById('downloadTask-icon-'+task.id).src = youtube2mp3Server+'/static/ic_done_black_24dp.png';
-            downloads.pop(task.id)
+            delete downloads[task.id]
+            storePendingTasks();
             setTimeout(function() {
                 // TODO fadeOut
                 document.getElementById('downloadTask-'+task.id).style.display = 'none'
             }, 4000);
+        }
+        if (isKO) {
+            delete downloads[task.id]
+            storePendingTasks();
+            console.log('Deleted task in error', downloads)
         }
     } catch(e) {
         console.error("Error in updateProgress", e)
@@ -131,13 +155,14 @@ function updateProgress(task) {
 
 function registerNewOngoingTask(task) {
     var taskid = task.id;
-    if (downloads.indexOf(taskid) !== -1) {
+    if (downloads[taskid]) {
         console.log('Task already registered')
         return;
     }
     console.log('Registering new task: '+taskid);
     updateProgress(task);
-    downloads.push(taskid)
+    downloads[taskid] = task;
+    storePendingTasks();
     var monitorTask = setInterval(function() {
         HttpCallFunctionJSON(youtube2mp3Server+'/status/'+taskid,
             function (result) {
@@ -151,6 +176,11 @@ function registerNewOngoingTask(task) {
                         console.log('Same task is already ongoing ('+result.originalId+'), cancelling '+result.id);
                         document.getElementById('downloadTask-'+task.id).style.display = 'none'
                         clearInterval(monitorTask);
+                    }
+                    if (result.status == 'ko') {
+                        console.log('Task '+taskid+' in error');
+                        clearInterval(monitorTask);
+                        setTimeout(function() {document.getElementById('downloadTask-'+task.id).style.display = 'none'}, 1000*60*5)
                     }
                     updateProgress(result);
                 }
@@ -207,4 +237,15 @@ if (document.URL.indexOf(".youtube.") !== -1) {
             clearInterval(addButtonsInterval);
         }
     }, 100);
+}
+
+try {
+    var data = localStorage.getItem('pendingTasks');
+    if (data) {
+        var oldTasks = JSON.parse(data);
+        console.log("Retrived "+ oldTasks.length + " pending tasks");
+        for (var i=0 ; i<oldTasks.length ; ++i) registerNewOngoingTask(oldTasks[i]);
+    }
+} catch (e) {
+    console.log('Failed to restore task', e)
 }
