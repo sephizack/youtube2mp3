@@ -134,8 +134,8 @@ function updateProgress(task) {
                                             + '    </li></ul>'
                                             + '</div>'
                 document.getElementById('downloadTask-close-'+task.id).onclick = function() {
-                    downloads[task.id].cancelRequested = true;
                     document.getElementById('downloadTask-'+task.id).style.display = 'none'
+                    if (downloads[task.id]) downloads[task.id].cancelRequested = true;
                 }
             }
         } 
