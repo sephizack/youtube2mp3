@@ -48,9 +48,10 @@ function storePendingTasks() {
 }
 
 var downloads = [];
+var monitoringTasks;
 var youtube2mp3Server = 'http://localhost:7788';
 //var youtube2mp3Server = 'http://192.168.1.10:7788';
-var downloadWidth = 400;
+var downloadWidth = 450;
 
 var setDownloadDiv = setInterval(function() {
     var container = document.getElementById('container');
@@ -60,7 +61,7 @@ var setDownloadDiv = setInterval(function() {
         div.id = 'downloadCorner'
         div.style.position = 'fixed'
         div.style.top = '25px'
-        div.style.right = (downloadWidth+25)+'px'
+        div.style.right = (downloadWidth+20)+'px'
         div.style.height = '0px'
         div.style.width = '0px'
         div.style.zIndex = '9999'
@@ -70,13 +71,18 @@ var setDownloadDiv = setInterval(function() {
 
 function updateProgress(task) {
     try {
+        if (downloads[task.id].cancelRequested) {
+            delete downloads[task.id]
+            storePendingTasks();
+            return false;
+        }
         downloads[task.id] = task;
         storePendingTasks();
 
         var downloadCorner = document.getElementById('downloadCorner');
         if (!downloadCorner) {
             console.error('downloadCorner not set!')
-            return
+            return true;
         }
 
         var isDone = false;
@@ -117,15 +123,20 @@ function updateProgress(task) {
             if (downloadCorner) {
                 var icon = youtube2mp3Server+'/static/ic_music_note_black_24dp.png';
                 if (task.type == 'video') icon = youtube2mp3Server+'/static/ic_ondemand_video_black_24dp.png';
-                downloadCorner.innerHTML +=   '<div class="iv-card-content" id="downloadTask-'+task.id+'" style="width:'+(downloadWidth-56-10)+'px;height:30px;margin-bottom:10px;background:white;padding-left:56px;padding-right:10px;box-shadow:1px 1px 5px 1px rgba(0, 0, 0, 0.4);padding-top: 10px;padding-bottom: 15px;">'
+                downloadCorner.innerHTML +=   '<div class="iv-card-content" id="downloadTask-'+task.id+'" style="width:'+(downloadWidth-56-34)+'px;height:30px;margin-bottom:10px;background:white;padding-left:56px;padding-right:34px;box-shadow:1px 1px 5px 1px rgba(0, 0, 0, 0.4);padding-top: 10px;padding-bottom: 15px;">'
                                             + '    <div style="height:0px;"><div id="downloadTask-progressbar-'+task.id+'" style="width:50px;height:5px;background:lightgreen;position:relative;top:40px;left:-56px"></div></div>'
                                             + '    <div style="height:0px;"><img id="downloadTask-icon-'+task.id+'" src="'+icon+'" style="position:relative;left:-45px;top:-3px;height:35px;width:auto"></div>'
-                                            + '    <h2 class="iv-card-primary-link" dir="ltr" style="margin:0;text-overflow: ellipsis;white-space: nowrap;overflow: hidden;" id="downloadTask-filename-'+task.id+'">'+task.filename+'</h2>'
-                                            + '    <ul class="iv-card-meta-info" style="margin: 2px;"><li dir="ltr">'
+                                            + '    <div style="height:0px;"><img id="downloadTask-close-'+task.id+'" src="'+youtube2mp3Server+'/static/baseline_close_black_24dp.png" title="Delete task" style="cursor:pointer;position:relative;left:'+(downloadWidth-56-34+3)+'px;top:-3px;height:24px;width:auto"></div>'
+                                            + '    <h2 class="iv-card-primary-link" dir="ltr" style="margin:0;text-overflow: ellipsis;white-space: nowrap;overflow: hidden;cursor:default" id="downloadTask-filename-'+task.id+'" title="'+task.filename.replace(/"/g, '\'')+'">'+task.filename+'</h2>'
+                                            + '    <ul class="iv-card-meta-info" style="margin: 2px;cursor:default"><li dir="ltr">'
                                             + '        <b id="downloadTask-status-'+task.id+'">'+task.status+'</b> '
                                             + '        <i id="downloadTask-progress-'+task.id+'">'+task.progressText+'</i>'
                                             + '    </li></ul>'
                                             + '</div>'
+                document.getElementById('downloadTask-close-'+task.id).onclick = function() {
+                    downloads[task.id].cancelRequested = true;
+                    document.getElementById('downloadTask-'+task.id).style.display = 'none'
+                }
             }
         } 
 
@@ -138,10 +149,6 @@ function updateProgress(task) {
             document.getElementById('downloadTask-icon-'+task.id).src = youtube2mp3Server+'/static/ic_done_black_24dp.png';
             delete downloads[task.id]
             storePendingTasks();
-            setTimeout(function() {
-                // TODO fadeOut
-                document.getElementById('downloadTask-'+task.id).style.display = 'none'
-            }, 4000);
         }
         if (isKO) {
             delete downloads[task.id]
@@ -151,6 +158,7 @@ function updateProgress(task) {
     } catch(e) {
         console.error("Error in updateProgress", e)
     }
+    return true;
 }
 
 function registerNewOngoingTask(task) {
@@ -180,13 +188,15 @@ function registerNewOngoingTask(task) {
                     if (result.status == 'ko') {
                         console.log('Task '+taskid+' in error');
                         clearInterval(monitorTask);
-                        setTimeout(function() {document.getElementById('downloadTask-'+task.id).style.display = 'none'}, 1000*60*5)
                     }
-                    updateProgress(result);
+                    if (!updateProgress(result)) {
+                        clearInterval(monitorTask);
+                    }
                 }
             }
         );
     },1000);
+    monitorTask
 }
 
 function downloadNewVideo(videoID, format) {
