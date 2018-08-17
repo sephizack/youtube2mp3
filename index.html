@@ -138,13 +138,13 @@
 <script src="static/youtubemp3.user.js"></script>
 
 <div class="form-style-8">
-  <h2>Convert your Youtube videos to MP3</h2>
+  <h2>Convert your Youtube videos to MP3 or download MP4</h2>
   <form id="convert_form">
     <input type="url" name="url" placeholder="Youtube video URL" />
-    <input type="radio" value="MP3" checked name="convertType"/> MP3
-    <input type="radio" value="MP4" name="convertType"/> MP4
+    <input type="radio" value="MP3" checked name="convertType" onclick="this.parentNode.submitbutton.value = 'Convert to MP3'"/> MP3
+    <input type="radio" value="MP4" name="convertType" onclick="this.parentNode.submitbutton.value = 'Download MP4'"/> MP4
     &nbsp;&nbsp;
-    <input type="submit" value="Convert"/>
+    <input type="submit" name="submitbutton" value="Convert to MP3"/>
   </form>
 </div>
 
