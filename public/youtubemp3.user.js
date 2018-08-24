@@ -49,8 +49,10 @@ function storePendingTasks() {
 
 var downloads = [];
 var monitoringTasks;
+
 var youtube2mp3Server = 'http://localhost:7788';
 //var youtube2mp3Server = 'http://192.168.1.10:7788';
+
 var downloadWidth = 450;
 
 var setDownloadDiv = setInterval(function() {
