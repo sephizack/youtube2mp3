@@ -150,7 +150,9 @@
       <input type="url" name="url" placeholder="Youtube video URL" />
       <input type="radio" value="MP3" checked name="convertType" onclick="this.parentNode.submitbutton.value = 'Convert to MP3'"/> MP3
       <input type="radio" value="MP4" name="convertType" onclick="this.parentNode.submitbutton.value = 'Download MP4'"/> MP4
-      &nbsp;&nbsp;
+      <br>
+      <input type="checkbox" name="dlPlaylist"/> Download Playlist
+      <br>
       <input type="submit" name="submitbutton" value="Convert to MP3"/>
     </form>
   </div>
@@ -166,32 +168,64 @@
   <script type="text/javascript">
   	youtube2mp3Server = location.protocol+'//'+location.host
   	document.getElementById('convert_form').onsubmit = function () {
-  		if (this.url.value.length == 0) {
-  			alert('Please provide a Youtube URL');
-  			return false;
-  		}
-  		var videoID;
-  		try {
-  			videoID = this.url.value.split('v=')[1].split('&')[0];
-  			console.log('Found video ID: ' + videoID)
-  		} catch (e) {
-  			try {
-  				videoID = this.url.value.split('youtu.be/')[1].split('&')[0];
-  				console.log('Found video ID: ' + videoID)
-  			} catch (e) {
-  				console.error(e)
-  				alert('Unable to extract Youtube video ID from the given URL: '+this.url.value);
-  				return false;
-  			}
-  		}
-  		try {
-  			downloadNewVideo(videoID, this.convertType.value);	
-  			this.url.value = '';
-  		} catch (e) {
-  			alert('Convertion failed:' + e)
-  			console.error(e)
-  		}
-  		return false;
+        if (this.dlPlaylist.checked) {
+            return downloadPlaylistFromUrl(this.url, this.convertType);
+        } else {
+  		    return downloadVideo(this.url, this.convertType);
+        }
   	}
+
+    function downloadVideo(url, convertType) {
+        if (url.value.length == 0) {
+            alert('Please provide a Youtube URL');
+            return false;
+        }
+        var videoID;
+        try {
+            videoID = url.value.split('v=')[1].split('&')[0];
+            console.log('Found video ID: ' + videoID)
+        } catch (e) {
+            try {
+                videoID = url.value.split('youtu.be/')[1].split('&')[0];
+                console.log('Found video ID: ' + videoID)
+            } catch (e) {
+                console.error(e)
+                alert('Unable to extract Youtube video ID from the given URL: '+url.value);
+                return false;
+            }
+        }
+        try {
+            downloadNewVideo(videoID, convertType.value);  
+            url.value = '';
+        } catch (e) {
+            alert('Convertion failed:' + e)
+            console.error(e)
+        }
+        return false;
+    }
+
+    function downloadPlaylistFromUrl(url, convertType) {
+        if (url.value.length == 0) {
+            alert('Please provide a Youtube URL with a playlist tag (list=...)');
+            return false;
+        }
+        var playlistID;
+        try {
+            playlistID = url.value.split('list=')[1].split('&')[0];
+            console.log('Found playlist ID: ' + playlistID)
+        } catch (e) {
+            console.error(e)
+            alert('Unable to extract Youtube playlist ID from the given URL: '+url.value);
+            return false;
+        }
+        try {
+            downloadPlaylist(playlistID, convertType.value);  
+            url.value = '';
+        } catch (e) {
+            alert('Convertion failed:' + e)
+            console.error(e)
+        } 
+        return false;
+    }
   </script>
 </body>

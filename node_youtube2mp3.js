@@ -3,6 +3,7 @@ const express = require('express')
 const app = express()
 const fs = require('fs');
 const ytdl = require('ytdl-core');
+var request = require('request');
 var randomstring = require("randomstring");
 var sanitize = require("sanitize-filename");
 var ffmpeg = require('fluent-ffmpeg')
@@ -21,7 +22,7 @@ function saveBufferAsFile(res, writer, filename, task) {
     var filepath = FILES_LOCATION+'/'+filename;
     if (!fs.existsSync(FILES_LOCATION)) fs.mkdirSync(FILES_LOCATION);
     writer.pipe(fs.createWriteStream(filepath)).on('finish', function () {
-        console.log('Task complete! Will delete file in 20min')
+        console.log('Task complete! Will delete file in 60min')
         task.status = 'completed'
         task.progress = 1
         task.endProgress = 1
@@ -35,7 +36,7 @@ function saveBufferAsFile(res, writer, filename, task) {
             } catch (e) {
                 console.log(e)
             }
-        }, 20*60*1000)
+        }, 60*60*1000)
     });
 }
 
@@ -170,13 +171,48 @@ app.get('/downloadMp4/:videoId', function (req, res) {
     }
 })
 
+app.get('/extractPlaylist/:playlistID', function (req, res) {
+    var requestUrl = 'https://www.youtube.com/playlist?list=' + req.params.playlistID;
+    console.log('Extracting videos of playlist '+ req.params.playlistID + ' ...');
+    var resulstJson = {status: 'ko', playlistId:req.params.playlistID}
+    try {
+        request(requestUrl, function (error, response, body) {
+            if (error) {
+                console.log(error)
+                resulstJson.message = 'Could not get Playlist page'
+                res.json(resulstJson)
+                return
+            }
+            var regexpStr = 'watch\\?v=([0-9A-Za-z\-_]+)(&amp;t=0s)?(&amp;index=([0-9]+))?&amp;list='+req.params.playlistID;
+            console.log("Using regexp '"+regexpStr+"' ...")
+            var playlistRegexp = new RegExp(regexpStr, 'g');
+            var regexp_result;
+            var playlistVideos = new Set();
+            while ((regexp_result = playlistRegexp.exec(body)) !== null) {
+                if (!playlistVideos.has(regexp_result[1])) {
+                    playlistVideos.add(regexp_result[1])
+                }
+            }
+            console.log('Videos of playlist: ', playlistVideos);
+            resulstJson.videos = Array.from(playlistVideos)
+            resulstJson.status = 'ok'
+            res.json(resulstJson)
+        });
+    } catch (e) {
+        console.error(e)
+        resulstJson.message = 'An exception has occurred'
+        res.json(resulstJson)
+    }
+})
+
 app.get('/', function (req, res) {
     res.sendFile('index.html', {
         root: __dirname + '/',
         dotfiles: 'deny',
         headers: {
             'x-timestamp': Date.now(),
-            'x-sent': true
+            'x-sent': true,
+            'Access-Control-Allow-Origin': 'https://www.youtube.com'
         }
     });
 })

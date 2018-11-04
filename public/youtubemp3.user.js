@@ -6,20 +6,22 @@
 // @include        https://*.youtube.*/*watch*
 // @exclude        https://www.youtube.com/subscribe_embed*
 // @grant          GM_xmlhttpRequest
+// @connect        youtube.com
 // @connect        localhost
 // @connect        192.168.*.*
 //// @require      file:///C:/Users/biseg/git/youtube2mp3/public/youtubemp3.user.js
 //// @require      file:///D:/homeRaspberry/git/youtube2mp3/public/youtubemp3.user.js
 // ==/UserScript==
 
-function HttpCallFunctionJSON(url, callback) {
+function HttpCallFunctionJSON(url, callback, getRawResult) {
     try {
         GM_xmlhttpRequest({
             method: 'GET',
             url: url,
             onload: function (responseDetails) {
                 if (responseDetails.status == 200) {
-                    var result = JSON.parse(responseDetails.responseText);
+                    var result = responseDetails.responseText;
+                    if (!getRawResult) result = JSON.parse(result);
                     callback(result);
                 } else {
                     console.error(responseDetails)
@@ -136,6 +138,7 @@ function updateProgress(task) {
                                             + '    </li></ul>'
                                             + '</div>'
                 document.getElementById('downloadTask-close-'+task.id).onclick = function() {
+                    console.log('Closing Task ' + task.id + '...')
                     document.getElementById('downloadTask-'+task.id).style.display = 'none'
                     if (downloads[task.id]) downloads[task.id].cancelRequested = true;
                 }
@@ -213,22 +216,37 @@ function downloadNewVideo(videoID, format) {
     );
 }
 
+function downloadPlaylist(playlistID, format) {
+    console.log('Requesting video list for playlist '+playlistID);
+    HttpCallFunctionJSON(youtube2mp3Server+'/extractPlaylist/'+playlistID,
+        function (result) {
+            console.log(result)
+            console.log("Starting download of "+result.videos.length + " videos...")
+            result.videos.forEach(function(id) {downloadNewVideo(id, format)});
+        }
+    );
+}
+
 function addDownloadButton(type) {
     try {
-        var buttonName = type == "MP3" ? "MP3" : "MP4"
         var div = document.createElement('div');
         div.id = 'download-button';
         div.className = 'style-scope ytd-video-secondary-info-renderer';
         div.innerHTML = '<div style="cursor:pointer;border:1psx solid white;margin-left:5px;padding:20px;position:relative;left:10px;top:-8px;color:#F0F0F0">'
                             + '<div style="height:0px;"><img src="'+youtube2mp3Server+'/static/ic_file_download_white_24dp.png" style="position:relative;left:-12px;top:-3px;height:25px;width:auto"></div>'
-                            + ' <span style="position:relative;left:17px;font-size:14px">'+buttonName+'</span>'
+                            + ' <span style="position:relative;left:17px;font-size:14px">'+type+'</span>'
                         +'</div>';
-        div.title = 'Télécharger cette video youtube au format '+type
+        div.title = type == "Playlist" ? 'Telecharger la Playlist au format MP3' : 'Télécharger cette video youtube au format '+type
         div.style.position = 'relative';
         div.style.top = '7px';
         div.addEventListener('click', function () {
-            var videoID = location.search.split('v=')[1].split('&')[0];
-            downloadNewVideo(videoID, type);
+            if (type == "Playlist") {
+                var playlistID = location.search.split('list=')[1].split('&')[0];
+                downloadPlaylist(playlistID, 'MP3');
+            } else {
+                var videoID = location.search.split('v=')[1].split('&')[0];
+                downloadNewVideo(videoID, type);
+            }
             return false;
         }, false);
         document.getElementById('logo-icon-container').parentNode.parentNode.appendChild(div);
@@ -246,6 +264,7 @@ if (document.URL.indexOf(".youtube.") !== -1) {
         if (!document.getElementById('download-button') && document.getElementById('logo-icon-container')) {
             addDownloadButton('MP3');
             addDownloadButton('MP4');
+            addDownloadButton('Playlist');
             clearInterval(addButtonsInterval);
         }
     }, 100);
