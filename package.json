@@ -4,13 +4,13 @@
   "main": "node_youtube2mp3.js",
   "dependencies": {
     "express": "^4.16.2",
-    "request": "^2.88.0",
     "ffmpeg": "0.0.4",
     "fluent-ffmpeg": "^2.1.2",
     "randomstring": "^1.1.5",
-    "sanitize-filename": "^1.6.1",
+    "request": "^2.88.0",
+    "sanitize-filename": "^1.6.3",
     "youtube-audio-stream": "^0.3.0",
-    "ytdl-core": "^0.29.2"
+    "ytdl-core": "^0.29.7"
   },
   "devDependencies": {},
   "scripts": {

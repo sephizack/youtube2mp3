@@ -124,6 +124,12 @@ app.get('/convertToMp3/:videoId', function (req, res) {
                 task.status = "error";
                 return;
             }
+            if (!videosInfos || !videosInfos.title) {
+                console.log("Missing video infos");
+                task.status = "error"
+                task.message = "Could not retrieve video informations."
+                return
+            }
             var filename = sanitize(videosInfos.title) + '.mp3';
             if (checkExistingTask(filename, task)) {
                 console.log("Task already existst.");
