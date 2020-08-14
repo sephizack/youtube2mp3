@@ -9,8 +9,8 @@
     "randomstring": "^1.1.5",
     "request": "^2.88.0",
     "sanitize-filename": "^1.6.3",
-    "youtube-audio-stream": "^0.3.0",
-    "ytdl-core": "^0.29.7"
+    "youtube-audio-stream": "^0.3.6",
+    "ytdl-core": "^3.2.1"
   },
   "devDependencies": {},
   "scripts": {

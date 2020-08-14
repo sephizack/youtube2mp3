@@ -152,7 +152,8 @@ function updateProgress(task) {
         document.getElementById('downloadTask-progressbar-'+task.id).style.width = Math.floor(task.progressPercent*downloadWidth) + 'px';
         if (isDone) {
             document.getElementById('downloadTask-icon-'+task.id).src = youtube2mp3Server+'/static/ic_done_black_24dp.png';
-            delete downloads[task.id]
+            document.getElementById('downloadTask-'+task.id).style.display = 'none'
+	    delete downloads[task.id]
             storePendingTasks();
         }
         if (isKO) {
