@@ -9,9 +9,13 @@
 // @connect        youtube.com
 // @connect        localhost
 // @connect        192.168.*.*
+// @require        file:///Users/tbisegna/git/youtube2mp3/public/youtubemp3.user.js
 //// @require      file:///C:/Users/biseg/git/youtube2mp3/public/youtubemp3.user.js
 //// @require      file:///D:/homeRaspberry/git/youtube2mp3/public/youtubemp3.user.js
 // ==/UserScript==
+
+var youtube2mp3Server = 'http://localhost:7788';
+//var youtube2mp3Server = 'http://192.168.1.10:7788';
 
 function HttpCallFunctionJSON(url, callback, getRawResult) {
     try {
@@ -51,10 +55,6 @@ function storePendingTasks() {
 
 var downloads = [];
 var monitoringTasks;
-
-var youtube2mp3Server = 'http://localhost:7788';
-//var youtube2mp3Server = 'http://192.168.1.10:7788';
-
 var downloadWidth = 450;
 
 var setDownloadDiv = setInterval(function() {
@@ -250,7 +250,9 @@ function addDownloadButton(type) {
             }
             return false;
         }, false);
-        document.getElementById('logo-icon-container').parentNode.parentNode.appendChild(div);
+        let aLogo = document.getElementById('logo');
+        aLogo.style.width = 'auto'
+        aLogo.parentNode.appendChild(div);
         document.getElementById('country-code').style.display = 'none';
         return true
     } catch (e) {
@@ -262,7 +264,7 @@ function addDownloadButton(type) {
 // Add button to UI
 if (document.URL.indexOf(".youtube.") !== -1) {
     var addButtonsInterval = setInterval(function() {
-        if (!document.getElementById('download-button') && document.getElementById('logo-icon-container')) {
+        if (!document.getElementById('download-button') && document.getElementById('logo')) {
             addDownloadButton('MP3');
             addDownloadButton('MP4');
             addDownloadButton('Playlist');
@@ -276,7 +278,9 @@ try {
     if (data) {
         var oldTasks = JSON.parse(data);
         console.log("Retrived "+ oldTasks.length + " pending tasks");
-        for (var i=0 ; i<oldTasks.length ; ++i) registerNewOngoingTask(oldTasks[i]);
+        for (var i=0 ; i<oldTasks.length ; ++i) {
+            registerNewOngoingTask(oldTasks[i]);
+        }
     }
 } catch (e) {
     console.log('Failed to restore task', e)
