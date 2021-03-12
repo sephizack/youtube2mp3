@@ -267,7 +267,7 @@ if (document.URL.indexOf(".youtube.") !== -1) {
         if (!document.getElementById('download-button') && document.getElementById('logo')) {
             addDownloadButton('MP3');
             addDownloadButton('MP4');
-            addDownloadButton('Playlist');
+            //addDownloadButton('Playlist');
             clearInterval(addButtonsInterval);
         }
     }, 100);
