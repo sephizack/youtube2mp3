@@ -174,7 +174,10 @@ app.get('/convertToMp3/:videoId', async function (req, res) {
             let videoIconPath = `${FILES_LOCATION}/icon-${req.params.videoId}.jpg`
             let proceed = () => {
                 console.log('Creating ' + filename + ' ...')
-                var reader = downloadYoutube(task, requestUrl, {quality: 'highestaudio', filter: 'audioonly'})
+                var reader = downloadYoutube(task, requestUrl, {
+                    quality: 'highestaudio',
+                    filter: 'audioonly'
+                })
                 try {
                     // FF mpeg is way faster than the download of the mp4, so no need to display progress actually (it's done in parallel)
                     var ffMpegWriter = ffmpeg(reader)
@@ -228,7 +231,10 @@ app.get('/downloadMp4/:videoId', async function (req, res) {
             if (checkExistingTask(filename, task)) return
 
             console.log('Creating ' + filename + ' ...')
-            var reader = downloadYoutube(task, requestUrl, { filter: (format) => format.container === 'mp4' });
+            var reader = downloadYoutube(task, requestUrl, {
+                quality: 'highest', // highestvideo is better but no sound
+                filter: (format) => format.container === 'mp4'
+            });
             saveBufferAsFile(res, reader, filename, task);
         } catch (err) {
             console.error("Unable to get video infos:", err);
